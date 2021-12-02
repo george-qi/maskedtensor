@@ -146,6 +146,59 @@ class TestMaskedTensor(TestCase):
         loss1 = output[0, :].sum()
         self.assertEqual(loss0, loss1.masked_data)
 
+    def test_chunk(self):
+        # This breaks because split_backward allocates
+        # Tensors using zero and then cats them together.
+        # I don't know why the masks are coming into play here.
+        # It's an autograd thing.
+        k_data = torch.tensor(
+          [
+            [
+              [  0.4556],
+              [  0.6323]
+            ],
+            [
+              [  0.3489],
+              [      0.],
+            ],
+            [
+              [  0.0223],
+              [      0.]
+            ]
+          ]
+        )
+        k_mask = torch.tensor(
+          [
+            [
+              [True],
+              [True],
+            ],
+            [
+              [True],
+              [False],
+            ],
+            [
+              [True],
+              [False],
+            ]
+          ]
+        )
+        k = maskedtensor.masked_tensor(k_data, k_mask, requires_grad=True)
+        linear = torch.nn.functional.linear
+        w = torch.tensor([[1.], [2.], [3.]], requires_grad=True)
+        w_q, w_k, w_v = w.chunk(3)
+        # This fails too, but in a different way.
+        # o0 = k + w_k
+        # print(o0)
+        # o0.sum().backward()
+        # return
+        o = linear(k, w_k)
+        print(k, w_k, o)
+        o.sum().backward()
+        print(k.grad)
+        print(w.grad)
+        pass
+
 
 if __name__ == "__main__":
     unittest.main()
